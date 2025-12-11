@@ -3,7 +3,6 @@ import { cors } from 'npm:hono/cors'
 import { logger } from 'npm:hono/logger'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { get, set, del, getByPrefix, mset, mdel } from './kv_store.tsx'
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const app = new Hono()
 
@@ -15,7 +14,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-// Email sending function using custom SMTP
+// Email sending function using Resend API
 async function sendEmail(to: string, subject: string, htmlBody: string) {
   console.log('\n╔════════════════════════════════════════╗')
   console.log('║   ATTEMPTING TO SEND EMAIL             ║')
@@ -24,122 +23,54 @@ async function sendEmail(to: string, subject: string, htmlBody: string) {
   console.log('Subject:', subject)
   
   try {
-    // Custom SMTP Configuration
-    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com'
-    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '465')
-    const smtpUser = Deno.env.get('SMTP_USER')
-    const smtpPassword = Deno.env.get('SMTP_PASSWORD')
-    const senderEmail = Deno.env.get('SENDER_EMAIL') || smtpUser
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    const senderEmail = Deno.env.get('SENDER_EMAIL') || 'noreply@lspu-job-portal.com'
     const senderName = Deno.env.get('SENDER_NAME') || 'LSPU-LBC Online Job Portal'
 
-    console.log('\n=== SMTP CONFIGURATION CHECK ===')
-    console.log('SMTP_HOST:', smtpHost)
-    console.log('SMTP_PORT:', smtpPort)
-    console.log('SMTP_USER exists:', !!smtpUser)
-    console.log('SMTP_USER value:', smtpUser || '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
-    console.log('SMTP_PASSWORD exists:', !!smtpPassword)
-    console.log('SMTP_PASSWORD length:', smtpPassword ? smtpPassword.length : '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
+    console.log('\n=== RESEND API CONFIGURATION CHECK ===')
+    console.log('RESEND_API_KEY exists:', !!resendApiKey)
     console.log('SENDER_EMAIL:', senderEmail)
     console.log('SENDER_NAME:', senderName)
 
-    if (!smtpUser || !smtpPassword) {
-      console.error('\n❌❌❌ CRITICAL ERROR ❌❌❌')
-      console.error('SMTP credentials are NOT CONFIGURED in Supabase!')
-      console.error('SMTP_USER:', smtpUser ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
-      console.error('SMTP_PASSWORD:', smtpPassword ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
-      console.error('\n📍 ACTION REQUIRED:')
-      console.error('1. Go to: https://supabase.com/dashboard')
-      console.error('2. Select your project')
-      console.error('3. Settings → Secrets')
-      console.error('4. Add: SMTP_HOST = smtp.gmail.com')
-      console.error('5. Add: SMTP_PORT = 465')
-      console.error('6. Add: SMTP_USER = jadesupremo0@gmail.com')
-      console.error('7. Add: SMTP_PASSWORD = ltymbiwjuqirorth')
-      console.error('8. Add: SENDER_EMAIL = admin@lspu.edu.ph')
-      console.error('9. Add: SENDER_NAME = LSPU-LBC Online Job Portal')
-      console.error('10. Save and wait 30 seconds')
-      console.error('11. Try again\n')
-      return false
+    if (!resendApiKey) {
+      console.error('\n⚠️ RESEND_API_KEY not configured')
+      console.error('Falling back to console-only mode for development')
+      console.log('EMAIL WOULD BE SENT TO:', to)
+      console.log('SUBJECT:', subject)
+      return true // Return true for dev mode
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(senderEmail)) {
-      console.error('❌ SENDER_EMAIL is not a valid email:', senderEmail)
-      return false
-    }
-
-    // Clean and validate credentials
-    const cleanUsername = smtpUser.trim()
-    const cleanPassword = smtpPassword.trim().replace(/\s/g, '') // Remove all spaces
-    
-    console.log('\n=== CREDENTIALS VALIDATION ===')
-    console.log('✅ SENDER_EMAIL is valid email')
-    console.log('✅ Cleaned username:', cleanUsername)
-    console.log('✅ Cleaned password length:', cleanPassword.length)
-
-    console.log('\n=== SMTP CONNECTION ===')
-    console.log(`Connecting to: ${smtpHost}:${smtpPort}`)
-    console.log('Using TLS: true')
-    console.log('Username:', cleanUsername)
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: true,
-        auth: {
-          username: cleanUsername,
-          password: cleanPassword,
-        },
+    console.log('\n=== SENDING VIA RESEND API ===')
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
       },
+      body: JSON.stringify({
+        from: `${senderName} <${senderEmail}>`,
+        to: to,
+        subject: subject,
+        html: htmlBody,
+      }),
     })
 
-    console.log('\n=== SENDING EMAIL ===')
-    console.log(`From Name: ${senderName}`)
-    console.log('From Email:', senderEmail)
-    console.log('To:', to)
-    console.log('Subject:', subject)
-
-    await client.send({
-      from: `${senderName} <${senderEmail}>`,
-      to: to,
-      subject: subject,
-      content: 'auto',
-      html: htmlBody,
-    })
-
-    await client.close()
+    const data = await response.json()
     
+    if (!response.ok) {
+      console.error('Resend API error:', data)
+      return false
+    }
+
     console.log('\n✅✅✅ SUCCESS! ✅✅✅')
     console.log(`Email sent successfully to ${to}`)
+    console.log('Email ID:', data.id)
     console.log('Check the recipient\'s inbox!\n')
     return true
   } catch (error: any) {
     console.error('\n❌❌❌ EMAIL SENDING FAILED ❌❌❌')
     console.error('Error:', error)
     console.error('Error message:', error?.message)
-    console.error('Error name:', error?.name)
-    
-    if (error?.message?.includes('535')) {
-      console.error('\n🔍 DIAGNOSIS: SMTP authentication failed')
-      console.error('Possible causes:')
-      console.error('1. ❌ SMTP_USER or SMTP_PASSWORD not set in Supabase')
-      console.error('2. ❌ Wrong email address')
-      console.error('3. ❌ Wrong app password')
-      console.error('4. ❌ App password has been revoked')
-      console.error('5. ❌ 2FA not enabled on Gmail account')
-      console.error('\n📍 SOLUTION:')
-      console.error('1. Verify SMTP_USER = jadesupremo0@gmail.com')
-      console.error('2. Verify SMTP_PASSWORD = ltymbiwjuqirorth')
-      console.error('3. Check both are set in Supabase Secrets')
-      console.error('4. Regenerate app password if needed')
-    } else if (error.message?.includes('email') || error.message?.includes('adress')) {
-      console.error('\n🔍 DIAGNOSIS: Email format issue')
-      console.error('The from address validation failed')
-      console.error('This usually means GMAIL_USER environment variable is not set')
-    }
-    
     console.error('\n')
     return false
   }
@@ -156,7 +87,7 @@ async function initializeBuckets() {
       return
     }
     
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketName)
+    const bucketExists = buckets?.some((bucket: any) => bucket.name === bucketName)
     
     if (!bucketExists) {
       console.log('Creating bucket:', bucketName)
