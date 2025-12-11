@@ -2,6 +2,7 @@ import { Bell, User, LogOut, Menu, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabase-client'
 import { api } from '../utils/api'
+import { LogoutModal } from './LogoutModal'
 import lspuLogo from 'figma:asset/632e126b3f1d7e670d648c8751062fdf02606f8b.png'
 
 interface NavbarProps {
@@ -13,6 +14,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
   const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [profile, setProfile] = useState<any>(null)
 
   useEffect(() => {
@@ -122,7 +124,7 @@ export function Navbar({ user, onLogout }: NavbarProps) {
                 </div>
 
                 <button
-                  onClick={onLogout}
+                  onClick={() => setShowLogoutModal(true)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                   title="Logout"
                 >
@@ -187,7 +189,10 @@ export function Navbar({ user, onLogout }: NavbarProps) {
               </button>
 
               <button
-                onClick={onLogout}
+                onClick={() => {
+                  setShowLogoutModal(true)
+                  setShowMobileMenu(false)
+                }}
                 className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg text-red-600"
               >
                 <LogOut className="w-5 h-5" />
@@ -197,6 +202,16 @@ export function Navbar({ user, onLogout }: NavbarProps) {
           </div>
         )}
       </div>
+
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={() => {
+            setShowLogoutModal(false)
+            onLogout()
+          }}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
     </nav>
   )
 }
