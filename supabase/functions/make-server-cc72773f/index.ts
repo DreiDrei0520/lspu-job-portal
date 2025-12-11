@@ -15,7 +15,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-// Email sending function using Gmail SMTP
+// Email sending function using custom SMTP
 async function sendEmail(to: string, subject: string, htmlBody: string) {
   console.log('\n╔════════════════════════════════════════╗')
   console.log('║   ATTEMPTING TO SEND EMAIL             ║')
@@ -24,63 +24,69 @@ async function sendEmail(to: string, subject: string, htmlBody: string) {
   console.log('Subject:', subject)
   
   try {
-    const gmailUser = Deno.env.get('GMAIL_USER')
-    const gmailAppPassword = Deno.env.get('GMAIL_APP_PASSWORD')
+    // Custom SMTP Configuration
+    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com'
+    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '465')
+    const smtpUser = Deno.env.get('SMTP_USER')
+    const smtpPassword = Deno.env.get('SMTP_PASSWORD')
+    const senderEmail = Deno.env.get('SENDER_EMAIL') || smtpUser
+    const senderName = Deno.env.get('SENDER_NAME') || 'LSPU-LBC Online Job Portal'
 
-    console.log('\n=== ENVIRONMENT VARIABLES CHECK ===')
-    console.log('GMAIL_USER exists:', !!gmailUser)
-    console.log('GMAIL_USER value:', gmailUser || '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
-    console.log('GMAIL_APP_PASSWORD exists:', !!gmailAppPassword)
-    console.log('GMAIL_APP_PASSWORD length:', gmailAppPassword ? gmailAppPassword.length : '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
+    console.log('\n=== SMTP CONFIGURATION CHECK ===')
+    console.log('SMTP_HOST:', smtpHost)
+    console.log('SMTP_PORT:', smtpPort)
+    console.log('SMTP_USER exists:', !!smtpUser)
+    console.log('SMTP_USER value:', smtpUser || '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
+    console.log('SMTP_PASSWORD exists:', !!smtpPassword)
+    console.log('SMTP_PASSWORD length:', smtpPassword ? smtpPassword.length : '❌ NOT SET - GO TO SUPABASE DASHBOARD!')
+    console.log('SENDER_EMAIL:', senderEmail)
+    console.log('SENDER_NAME:', senderName)
 
-    if (!gmailUser || !gmailAppPassword) {
+    if (!smtpUser || !smtpPassword) {
       console.error('\n❌❌❌ CRITICAL ERROR ❌❌❌')
-      console.error('Gmail credentials are NOT CONFIGURED in Supabase!')
-      console.error('GMAIL_USER:', gmailUser ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
-      console.error('GMAIL_APP_PASSWORD:', gmailAppPassword ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
+      console.error('SMTP credentials are NOT CONFIGURED in Supabase!')
+      console.error('SMTP_USER:', smtpUser ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
+      console.error('SMTP_PASSWORD:', smtpPassword ? '✅ SET' : '❌ MISSING - ADD IT NOW!')
       console.error('\n📍 ACTION REQUIRED:')
       console.error('1. Go to: https://supabase.com/dashboard')
       console.error('2. Select your project')
       console.error('3. Settings → Secrets')
-      console.error('4. Add: GMAIL_USER = jadesupremo0@gmail.com')
-      console.error('5. Add: GMAIL_APP_PASSWORD = lfnsyegcvqbaywbq')
-      console.error('6. Save and wait 30 seconds')
-      console.error('7. Try again\n')
+      console.error('4. Add: SMTP_HOST = smtp.gmail.com')
+      console.error('5. Add: SMTP_PORT = 465')
+      console.error('6. Add: SMTP_USER = jadesupremo0@gmail.com')
+      console.error('7. Add: SMTP_PASSWORD = ltymbiwjuqirorth')
+      console.error('8. Add: SENDER_EMAIL = admin@lspu.edu.ph')
+      console.error('9. Add: SENDER_NAME = LSPU-LBC Online Job Portal')
+      console.error('10. Save and wait 30 seconds')
+      console.error('11. Try again\n')
       return false
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(gmailUser)) {
-      console.error('❌ GMAIL_USER is not a valid email:', gmailUser)
+    if (!emailRegex.test(senderEmail)) {
+      console.error('❌ SENDER_EMAIL is not a valid email:', senderEmail)
       return false
     }
 
     // Clean and validate credentials
-    const cleanUsername = gmailUser.trim()
-    const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '') // Remove all spaces
+    const cleanUsername = smtpUser.trim()
+    const cleanPassword = smtpPassword.trim().replace(/\s/g, '') // Remove all spaces
     
     console.log('\n=== CREDENTIALS VALIDATION ===')
-    console.log('✅ GMAIL_USER is valid email')
+    console.log('✅ SENDER_EMAIL is valid email')
     console.log('✅ Cleaned username:', cleanUsername)
     console.log('✅ Cleaned password length:', cleanPassword.length)
-    console.log('Expected password length: 16')
-    
-    if (cleanPassword.length !== 16) {
-      console.error('❌ WARNING: Gmail app password should be 16 characters!')
-      console.error('Current length:', cleanPassword.length)
-      console.error('This might cause authentication to fail.')
-    }
 
     console.log('\n=== SMTP CONNECTION ===')
-    console.log('Connecting to: smtp.gmail.com:465')
+    console.log(`Connecting to: ${smtpHost}:${smtpPort}`)
     console.log('Using TLS: true')
     console.log('Username:', cleanUsername)
 
     const client = new SMTPClient({
       connection: {
-        hostname: 'smtp.gmail.com',
-        port: 465,
+        hostname: smtpHost,
+        port: smtpPort,
         tls: true,
         auth: {
           username: cleanUsername,
@@ -90,13 +96,13 @@ async function sendEmail(to: string, subject: string, htmlBody: string) {
     })
 
     console.log('\n=== SENDING EMAIL ===')
-    console.log('From Name: LSPU-LBC Job Portal')
-    console.log('From Email:', cleanUsername)
+    console.log(`From Name: ${senderName}`)
+    console.log('From Email:', senderEmail)
     console.log('To:', to)
     console.log('Subject:', subject)
 
     await client.send({
-      from: cleanUsername, // Try simple format first
+      from: `${senderName} <${senderEmail}>`,
       to: to,
       subject: subject,
       content: 'auto',
@@ -109,23 +115,23 @@ async function sendEmail(to: string, subject: string, htmlBody: string) {
     console.log(`Email sent successfully to ${to}`)
     console.log('Check the recipient\'s inbox!\n')
     return true
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌❌❌ EMAIL SENDING FAILED ❌❌❌')
     console.error('Error:', error)
-    console.error('Error message:', error.message)
-    console.error('Error name:', error.name)
+    console.error('Error message:', error?.message)
+    console.error('Error name:', error?.name)
     
-    if (error.message?.includes('535')) {
-      console.error('\n🔍 DIAGNOSIS: Gmail authentication failed')
+    if (error?.message?.includes('535')) {
+      console.error('\n🔍 DIAGNOSIS: SMTP authentication failed')
       console.error('Possible causes:')
-      console.error('1. ❌ GMAIL_USER or GMAIL_APP_PASSWORD not set in Supabase')
+      console.error('1. ❌ SMTP_USER or SMTP_PASSWORD not set in Supabase')
       console.error('2. ❌ Wrong email address')
       console.error('3. ❌ Wrong app password')
       console.error('4. ❌ App password has been revoked')
       console.error('5. ❌ 2FA not enabled on Gmail account')
       console.error('\n📍 SOLUTION:')
-      console.error('1. Verify GMAIL_USER = jadesupremo0@gmail.com')
-      console.error('2. Verify GMAIL_APP_PASSWORD = lfnsyegcvqbaywbq')
+      console.error('1. Verify SMTP_USER = jadesupremo0@gmail.com')
+      console.error('2. Verify SMTP_PASSWORD = ltymbiwjuqirorth')
       console.error('3. Check both are set in Supabase Secrets')
       console.error('4. Regenerate app password if needed')
     } else if (error.message?.includes('email') || error.message?.includes('adress')) {
