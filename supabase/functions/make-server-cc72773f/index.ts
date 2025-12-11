@@ -664,27 +664,72 @@ app.put('/make-server-cc72773f/applications/:id', async (c) => {
         const recipientName = applicantAuth?.user?.user_metadata?.name || 'Applicant'
 
         if (recipientEmail) {
-          const subject = `Application Status Updated: ${updates.status}`
+          const subject = `Application Status Updated: ${updates.status} - LSPU-LBC Job Portal`
+          
+          // Status-specific messages
+          const statusMessages: { [key: string]: string } = {
+            'Applied': 'Thank you for your application! We have received it and will review it soon.',
+            'Under Review': 'Your application is currently being reviewed by our hiring team.',
+            'Interview Scheduled': 'Great news! You have been selected for an interview. Please check your application for interview details.',
+            'Interviewed': 'Your interview has been completed. We will notify you of the next steps soon.',
+            'Accepted': 'Congratulations! Your application has been accepted. Welcome to LSPU-LBC!',
+            'Rejected': 'Thank you for your interest in LSPU-LBC. We appreciate your application.',
+            'Withdrawn': 'Your application has been withdrawn. You can apply again in the future.',
+            'On Hold': 'Your application is currently on hold. We will update you when there are any changes.'
+          }
+          
+          const statusMessage = statusMessages[updates.status] || `Your application status has been updated to: ${updates.status}`
+          
           const emailHtml = `
             <!DOCTYPE html>
             <html>
-            <body style="font-family: Arial, sans-serif; color: #333;">
-              <h2 style="color:#116d8a;">Application Status Update</h2>
-              <p>Hello ${recipientName},</p>
-              <p>Your application status has been updated to <strong>${updates.status}</strong>.</p>
-              <p>Job Title: <strong>${currentApplication.jobTitle || 'Your application'}</strong></p>
-              <p>If you have questions, you can reply to this email.</p>
-              <p style="margin-top:24px;">Thank you,<br/>LSPU-LBC Online Job Portal</p>
+            <head>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #0d5468 0%, #116d8a 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                .status-badge { display: inline-block; background: #116d8a; color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; margin: 15px 0; }
+                .job-details { background: white; border-left: 4px solid #116d8a; padding: 15px; margin: 15px 0; }
+                .footer { font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>Application Update</h1>
+                </div>
+                <div class="content">
+                  <p>Hello ${recipientName},</p>
+                  <p>${statusMessage}</p>
+                  <div class="status-badge">Status: ${updates.status}</div>
+                  <div class="job-details">
+                    <p><strong>Position Applied:</strong> ${currentApplication.jobTitle || 'N/A'}</p>
+                    <p><strong>Updated On:</strong> ${new Date().toLocaleDateString()}</p>
+                  </div>
+                  <p style="margin-top: 24px; font-size: 14px; color: #666;">
+                    <strong>Next Steps:</strong> Please log in to your account on the LSPU-LBC Job Portal to view more details or track your application status.
+                  </p>
+                  <p style="margin-top: 24px;">If you have any questions, please contact the LSPU-LBC HR Department.</p>
+                  <p style="margin-top: 24px;">Best regards,<br/><strong>LSPU-LBC HR Department</strong></p>
+                </div>
+                <div class="footer">
+                  <p>This is an automated email from LSPU-LBC Online Job Portal. Please do not reply to this message.</p>
+                  <p>Laguna State Polytechnic University - Los Baños Campus</p>
+                </div>
+              </div>
             </body>
             </html>
           `
           const emailSent = await sendEmail(recipientEmail, subject, emailHtml)
-          console.log('Notification email sent to applicant:', recipientEmail, 'sent:', emailSent)
+          console.log('✉️ Application status update email sent to', recipientEmail, '| Status:', emailSent ? '✅ SUCCESS' : '❌ FAILED')
         } else {
-          console.log('No recipient email found for applicant:', currentApplication.applicantId)
+          console.log('⚠️ No recipient email found for applicant:', currentApplication.applicantId)
         }
       } catch (emailError) {
-        console.error('Failed to send notification email to applicant:', emailError)
+        console.error('⚠️ Failed to send notification email to applicant:', emailError)
+        // Non-blocking error - continue even if email fails
       }
     }
 
