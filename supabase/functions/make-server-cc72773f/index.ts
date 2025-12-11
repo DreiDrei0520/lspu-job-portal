@@ -705,7 +705,7 @@ app.put('/make-server-cc72773f/applications/:id', async (c) => {
 
     await set(applicationId, updatedApplication)
 
-    // Create notification for applicant
+    // Create notification for applicant and send email alert
     if (updates.status) {
       const notificationId = `notification:${Date.now()}`
       const notificationData = {
@@ -718,6 +718,36 @@ app.put('/make-server-cc72773f/applications/:id', async (c) => {
         read: false
       }
       await set(notificationId, notificationData)
+
+      // Also email the applicant about the status update (best-effort, non-blocking)
+      try {
+        const { data: applicantAuth } = await supabase.auth.admin.getUserById(currentApplication.applicantId)
+        const recipientEmail = applicantAuth?.user?.email
+        const recipientName = applicantAuth?.user?.user_metadata?.name || 'Applicant'
+
+        if (recipientEmail) {
+          const subject = `Application Status Updated: ${updates.status}`
+          const emailHtml = `
+            <!DOCTYPE html>
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+              <h2 style="color:#116d8a;">Application Status Update</h2>
+              <p>Hello ${recipientName},</p>
+              <p>Your application status has been updated to <strong>${updates.status}</strong>.</p>
+              <p>Job Title: <strong>${currentApplication.jobTitle || 'Your application'}</strong></p>
+              <p>If you have questions, you can reply to this email.</p>
+              <p style="margin-top:24px;">Thank you,<br/>LSPU-LBC Online Job Portal</p>
+            </body>
+            </html>
+          `
+          const emailSent = await sendEmail(recipientEmail, subject, emailHtml)
+          console.log('Notification email sent to applicant:', recipientEmail, 'sent:', emailSent)
+        } else {
+          console.log('No recipient email found for applicant:', currentApplication.applicantId)
+        }
+      } catch (emailError) {
+        console.error('Failed to send notification email to applicant:', emailError)
+      }
     }
 
     return c.json({ success: true, application: updatedApplication })
