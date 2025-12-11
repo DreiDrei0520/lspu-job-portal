@@ -639,7 +639,7 @@ export function JobApplicationForm({ job, user, profile, onClose, onSuccess }: J
                       Download the PDS form, fill it out, and upload it below
                     </p>
                     <a
-                      href="https://www.csc.gov.ph/phocadownload/userupload/jobseekers/CS%20Form%20No.%20212%20(Revised%202017)%20-%20Personal%20Data%20Sheet_v2.xlsx"
+                      href="src/assets/CS Form No. 212 Personal Data Sheet revised (1).xlsx"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:underline flex items-center gap-1"
