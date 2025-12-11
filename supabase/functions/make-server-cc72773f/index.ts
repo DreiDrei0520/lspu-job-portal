@@ -52,6 +52,13 @@ async function sendEmail(to: string, subject: string, htmlBody: string) {
         to: to,
         subject: subject,
         html: htmlBody,
+        reply_to: senderEmail,
+        headers: {
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal',
+          'X-Mailer': 'LSPU-Job-Portal-Mailer/1.0',
+          'X-Entity-Ref-ID': `lspu-${Date.now()}`,
+        }
       }),
     })
 
