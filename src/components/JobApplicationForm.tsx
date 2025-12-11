@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, Plus, Trash2, Download, Upload, FileText, AlertCircle } from 'lucide-react'
 import { api } from '../utils/api'
 import { toast } from 'sonner@2.0.3'
+import pdsFormFile from '../assets/CS Form No. 212 Personal Data Sheet revised (1).xlsx'
 
 interface JobApplicationFormProps {
   job: any
@@ -639,9 +640,8 @@ export function JobApplicationForm({ job, user, profile, onClose, onSuccess }: J
                       Download the PDS form, fill it out, and upload it below
                     </p>
                     <a
-                      href="src/assets/CS Form No. 212 Personal Data Sheet revised (1).xlsx"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={pdsFormFile}
+                      download="PDS_Form.xlsx"
                       className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                     >
                       <Download className="w-4 h-4" />
